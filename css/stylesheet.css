@@ -1,0 +1,11 @@
+body {
+
+	/* Black Screen */
+	background-color: #000000;
+
+	/* No scrollbar */
+	overflow: hidden;
+
+	/* No cursor */
+	cursor: none;
+}

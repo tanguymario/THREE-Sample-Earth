@@ -1,0 +1,517 @@
+<html>
+	<head>
+		<title>THREE.js Training</title>
+
+		<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+
+		<!-- optimized for mobile devices -->
+		<meta name="viewport" content="width=device-width, height=device-height, initial-scale=1">
+
+		<!-- <link rel="stylesheet" type="text/css" href="css/stylesheet.css"> !-->
+		<link href="pictures/logo_head.png" type="image/png" rel="icon"/>
+
+		<style type="text/css">
+			body
+			{
+				overflow: hidden;
+
+				background-color: #000000;
+			}
+		</style>
+
+		<script src="js/jquery.js" type="text/javascript"></script>
+		<script src="js/utils.js" type="text/javascript"></script>
+		<script src="js/colorManager.js" type="text/javascript"></script>
+	</head>
+
+	<body>
+		<div id="webgl-three">
+			<div id="overlaytext" style="color: white; position: absolute; top: 10 px; left 10px;"></div>
+		</div>
+
+		<script src="js/three.min.js" type="text/javascript"></script>
+		<script src="js/Detector.js" type="text/javascript"></script>
+		<script src="js/renderers/CanvasRenderer.js" type="text/javascript"></script>
+		<script src="js/renderers/Projector.js" type="text/javascript"></script>
+		<script src="js/controls/OrbitControls.js" type="text/javascript"></script>
+		<script src="js/libs/stats.min.js" type="text/javascript"></script>
+		<script src="js/Clock.js" type="text/javascript"></script>
+
+		<script type="text/javascript">
+
+			// What is need to display anything in THREE.JS
+			var scene,
+				camera,
+				renderer;
+
+			var earthMesh,
+				cloudMesh,
+				moonMesh;
+
+			var animation;
+
+			var windowHalfX = window.innerWidth / 2,
+				windowHalfY = window.innerHeight / 2;
+
+			var speedX = 0,
+				speedY = 0.001;
+
+			var nb_particles = 120,
+				particles = new THREE.Geometry(),
+				particleSystem;
+
+			var backgroundColor = RGBToHex( 0, 0, 0 );
+			$('body').css('overflow', 'hidden');
+			$('body').css('background-color', '' + backgroundColor );
+
+			var stats;
+
+			initTHREE();
+
+			createSphereMap( "pictures/starfield/starfield_4.jpg" );
+			createEarth();
+			createMoon();
+
+			// createCube("pictures/crate.jpg");
+			createParticles("pictures/particleTexture.png");
+
+			animate();
+
+			function initTHREE()
+			{
+				scene = new THREE.Scene();
+
+				camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
+				camera.position.set( 0, 0, -2.5 );
+				camera.lookAt( scene.position );
+				scene.add( camera );
+
+				var info = 'Z/S/Q/D: Rotation <br />R: Reset Rotation <br />Renderer:';
+
+				if( Detector.webgl )
+				{
+					renderer = new THREE.WebGLRenderer({ antialias: true });
+					info += 'WebGL Renderer';
+				} else {
+					renderer = new THREE.CanvasRenderer();
+					info += 'Canvas Renderer';
+				}
+				$('#overlaytext').html( info );
+
+				renderer.setClearColor( backgroundColor, 1.0 );
+				renderer.setSize( window.innerWidth, window.innerHeight );
+
+				controls = new THREE.OrbitControls( camera, renderer.domElement );
+				controls.target.set( 0, 0, 0 );
+				controls.update();
+
+				stats = new Stats();
+				stats.domElement.style.position = 'absolute';
+				stats.domElement.style.right = '0px';
+				stats.domElement.style.top = '0px';
+
+				$('#webgl-three')
+					.append( renderer.domElement )
+					.append( stats.domElement );
+
+				var ambientLight = new THREE.AmbientLight( 0x404040, 1.0 );
+				scene.add( ambientLight );
+
+				var light = new THREE.DirectionalLight( RGBToHex( 200, 200, 200), 1.0 );
+				light.position.set( -30, 15, -30 );
+				light.lookAt( scene.position );
+
+				scene.add( light );
+			}
+
+			function createSphereMap(path)
+			{
+				if( typeof path === "string")
+				{
+					var mapLoader = new THREE.TextureLoader();
+					mapLoader.load( path, function(tex){
+						// Loaded
+						var sphereMap = new THREE.SphereGeometry( 500, 60, 40 );
+						var sphereMat = new THREE.MeshBasicMaterial({
+							map: tex
+						});
+
+						var sphereMesh = new THREE.Mesh( sphereMap, sphereMat );
+						sphereMesh.scale.x = -1;
+
+						scene.add( sphereMesh );
+					});
+				} else {
+					console.warn("Avertissement texture loader --- texture.html --- chemin n'est pas de type string");
+				}
+			}
+
+			function createEarth()
+			{
+				var sphereGeometry,
+					sphereMaterial;
+
+				var cloudGeometry,
+					cloudMaterial;
+
+				var texLoader;
+
+				sphereGeometry = new THREE.SphereGeometry( 1, 64, 64 );
+
+				// Loaded
+				if( Detector.webgl )
+				{
+					sphereMaterial = new THREE.MeshPhongMaterial({
+			  			color: RGBToHex( 0, 255, 0 ), //Green
+						wireframe: true,
+						shininess: 7,
+						side: THREE.DoubleSide
+		  			});
+				} else {
+					sphereMaterial = new THREE.MeshBasicMaterial({
+			  			color: RGBToHex( 0, 255, 0 ), //Green
+						wireframe: true,
+						side: THREE.DoubleSide
+		  			});
+				}
+
+				// A Mesh is done by adding geometry and material
+				earthMesh = new THREE.Mesh( sphereGeometry, sphereMaterial );
+				earthMesh.position.set( 0, 0, 0 );
+				scene.add( earthMesh );
+
+				texLoader = new THREE.TextureLoader();
+				// cubeTexLoader = new THREE.CubeTextureLoader();
+
+				texLoader.load( "pictures/earth/map.jpg" , function( textureMap ) {
+
+					earthMesh.material.map = textureMap;
+					earthMesh.material.wireframe = false;
+					earthMesh.material.color = new THREE.Color();
+
+					earthMesh.material.needsUpdate = true;
+
+					texLoader.load( "pictures/earth/normal.jpg", function( normalMap ) {
+						earthMesh.material.normalMap = normalMap;
+
+						earthMesh.material.needsUpdate = true;
+
+						texLoader.load( "pictures/earth/spec1k.jpg", function( specMap ) {
+							earthMesh.material.specMap = specMap;
+							earthMesh.material.specular = new THREE.Color('gray');
+
+							earthMesh.material.needsUpdate = true;
+
+							texLoader.load( "pictures/earth/clouds.png", function( cloudMap ) {
+								cloudGeometry = new THREE.SphereGeometry( 1.05, 64, 64 );
+								cloudMaterial = new THREE.MeshPhongMaterial({
+									map: cloudMap,
+									side: THREE.DoubleSide,
+									opacity: 0.5,
+									transparent: true,
+									depthWrite: false
+								});
+
+								cloudMesh = new THREE.Mesh( cloudGeometry, cloudMaterial );
+								earthMesh.add( cloudMesh );
+							});
+						});
+					});
+				});
+			}
+
+			function createMoon()
+			{
+				var sphereGeometry,
+					sphereMaterial;
+
+				var texLoader;
+
+				sphereGeometry = new THREE.SphereGeometry( 0.25, 32, 32 );
+
+				// Loaded
+				if( Detector.webgl )
+				{
+					sphereMaterial = new THREE.MeshPhongMaterial({
+			  			color: RGBToHex( 0, 0, 255 ), // Blue
+						wireframe: true,
+						shininess: 30,
+						side: THREE.DoubleSide
+		  			});
+				} else {
+					sphereMaterial = new THREE.MeshBasicMaterial({
+			  			color: RGBToHex( 0, 0, 255 ), // Blue
+						wireframe: true,
+						side: THREE.DoubleSide
+		  			});
+				}
+
+				// A Mesh is done by adding geometry and material
+				moonMesh = new THREE.Mesh( sphereGeometry, sphereMaterial );
+				moonMesh.position.set( 2, 0, 0 );
+				moonMesh.theta = 0;
+				moonMesh.dTheta = 2 * Math.PI;
+				moonMesh.phi = 0;
+				moonMesh.dPhi = 2 * Math.PI / 1000;
+				moonMesh.radius = 2;
+				scene.add( moonMesh );
+
+				texLoader = new THREE.TextureLoader();
+
+				texLoader.load( "pictures/moon/map.jpg" , function( textureMap ) {
+
+					moonMesh.material.map = textureMap;
+					moonMesh.material.wireframe = false;
+					moonMesh.material.color = new THREE.Color();
+
+					moonMesh.material.needsUpdate = true;
+
+					texLoader.load( "pictures/moon/normal.jpg", function( normalMap ) {
+						moonMesh.material.normalMap = normalMap;
+
+						moonMesh.material.needsUpdate = true;
+					});
+				});
+			}
+
+			function createCube(path)
+			{
+				// BoxGeometry
+				var cubeGeometry = new THREE.BoxGeometry( 1, 1, 1 ),
+					cubeMaterial;
+
+				if( typeof path === "string" )
+				{
+					var texloader = new THREE.TextureLoader();
+					texloader.load(path, function(tex) {
+
+						// Loaded
+						if( Detector.webgl )
+						{
+							cubeMaterial = new THREE.MeshLambertMaterial({
+					  			map: tex,
+					  			wireframe: false,
+					  			side: THREE.DoubleSide
+				  			});
+						} else {
+							cubeMaterial = new THREE.MeshBasicMaterial({
+					  			map: tex,
+					  			wireframe: false,
+					  			side: THREE.DoubleSide
+				  			});
+						}
+
+				  		scene.remove( earthMesh );
+
+				  		earthMesh = new THREE.Mesh( cubeGeometry, cubeMaterial );
+				  		earthMesh.position.set( 0, 0, 0 );
+				  		scene.add( earthMesh );
+
+					});
+				} else {
+					console.warn("Avertissement texture loader --- texture.html --- chemin n'est pas de type string");
+				}
+
+				// Material
+				cubeMaterial = new THREE.MeshBasicMaterial({
+					color: 0x00ff00, //Green
+					wireframe: true,
+					side: THREE.DoubleSide
+				});
+
+				// A Mesh is done by adding geometry and material
+				earthMesh = new THREE.Mesh( cubeGeometry, cubeMaterial );
+				earthMesh.position.set( 0, 0, 0 );
+				scene.add( earthMesh );
+			}
+
+			function createParticles(path)
+			{
+				particleTexLoader = new THREE.TextureLoader();
+				particleTexLoader.load( path, function( tex ){
+
+					var pMaterial = new THREE.PointsMaterial({
+						color: RGBToHex(25, 50, 225),
+						size: 0.1,
+						map: tex,
+						opacity: 1.0,
+						blending: THREE.AdditiveBlending,
+						transparent: true,
+						depthWrite: false
+					});
+
+					var radius = 1.25,
+						pX = 0,
+						pY = 0,
+						pZ = 0;
+
+					var theta, phi;
+
+					for( var i = 0; i < nb_particles; i++ )
+					{
+				        theta = ( Math.round( Math.random() * nb_particles ) * Math.PI ) / nb_particles;
+					    phi = ( Math.round( Math.random() * nb_particles ) * 2.0 * Math.PI ) / nb_particles;
+
+					    /*
+
+					    pX = radius * ( Math.sin( theta ) * Math.sin( phi ) );
+						pY = radius * ( Math.cos( theta ) );
+						pZ = radius * ( Math.sin( theta ) * Math.cos( phi ) );
+
+						*/
+
+				    	pX = radius * ( Math.cos( theta ) * Math.cos( phi ) );
+						pY = radius * ( Math.sin( phi ) );
+						pZ = radius * ( Math.sin( theta ) * Math.cos( phi ) );
+
+						/*
+						pX = -1.25;
+						pY = 0;
+						pZ = 0;
+						*/
+
+						particle = new THREE.Vector3( pX, pY, pZ );
+						particle.velocity = new THREE.Vector3( 0, 0, 0 );
+						particles.vertices.push( particle );
+					}
+
+					particleSystem = new THREE.Points( particles, pMaterial );
+					particleSystem.sortParticles = true;
+					scene.add( particleSystem );
+				});
+			}
+
+			var wesh = false;
+			var cmpt = 10;
+
+			function animate()
+			{
+				// Create a loop that causes to renderer to draw the scene 60 times/s
+				animation = requestAnimationFrame( animate );
+
+				// Drawing of the renderer
+				renderer.render( scene, camera );
+
+				// Rotations
+				if( earthMesh !== null && earthMesh !== undefined )
+				{
+					earthMesh.rotation.x += speedX;
+					earthMesh.rotation.y += speedY;
+
+					if(cloudMesh !== null && cloudMesh !== undefined )
+					{
+						cloudMesh.rotation.y += speedY + 0.0004;
+					}
+				}
+
+				if( particleSystem !== null && particleSystem !== undefined )
+				{
+					var radius = 1.25;
+
+					/*
+					for( var i = 0; i < particleSystem.geometry.vertices.length; i++ )
+					{
+						particleSystem.geometry.vertices[i].velocity.x = ( -particleSystem.geometry.vertices[i].z ) * 0.01;
+						particleSystem.geometry.vertices[i].velocity.y = 0;
+						particleSystem.geometry.vertices[i].velocity.z = particleSystem.geometry.vertices[i].x * 0.01;
+
+
+						particleSystem.geometry.vertices[i].velocity.x = ( -particleSystem.geometry.vertices[i].y ) * 0.01;
+						particleSystem.geometry.vertices[i].velocity.y = particleSystem.geometry.vertices[i].x * 0.01;
+						particleSystem.geometry.vertices[i].velocity.z = 0;
+
+					    particleSystem.geometry.vertices[i].x += particleSystem.geometry.vertices[i].velocity.x;
+						particleSystem.geometry.vertices[i].y += particleSystem.geometry.vertices[i].velocity.y;
+						particleSystem.geometry.vertices[i].z += particleSystem.geometry.vertices[i].velocity.z;
+
+						if(cmpt >= 0)
+						{
+							//console.log( particleSystem.geometry.vertices[i] );
+							wesh = true;
+							cmpt--;
+						}
+					}
+					*/
+
+					particleSystem.geometry.dynamic = true;
+					particleSystem.geometry.verticesNeedUpdate = true;
+
+					particleSystem.rotation.y += 0.01;
+					particleSystem.rotation.x += 0.01;
+				}
+
+				if( moonMesh !== null && moonMesh !== undefined )
+				{
+				    if( earthMesh !== null && earthMesh !== undefined )
+				    {
+				    	moonMesh.theta += moonMesh.dTheta;
+				     	moonMesh.phi += moonMesh.dPhi;
+				    	moonMesh.position.x = moonMesh.radius * Math.cos( moonMesh.theta ) * Math.sin( moonMesh.phi );
+				    	moonMesh.position.y = moonMesh.radius * Math.sin( moonMesh.theta ) * Math.sin( moonMesh.phi );
+				    	moonMesh.position.z = moonMesh.radius * Math.cos( moonMesh.phi );
+					}
+
+					moonMesh.rotation.y += 0.01;
+				}
+
+				stats.update();
+			}
+
+			$( window ).resize(function(){
+				windowHalfX = window.innerWidth / 2,
+				windowHalfY = window.innerHeight / 2,
+
+				camera.aspect = window.innerWidth / window.innerHeight;
+				camera.updateProjectionMatrix();
+
+				renderer.setSize( window.innerWidth, window.innerHeight );
+			});
+
+			$( window ).bind('keydown', function(event){
+				var key = event.keyCode;
+				switch( key )
+				{
+					case 83:
+					{
+						// S
+						if( speedX < 0.10 )
+							speedX += 0.001;
+						break;
+					}
+					case 90:
+					{
+						// Z
+						if( speedX > -0.10 )
+							speedX -= 0.001;
+						break;
+					}
+					case 68:
+					{
+						// D
+						if( speedY < 0.10 )
+							speedY += 0.001;
+						break;
+					}
+					case 81:
+					{
+						// Q
+						if( speedY > -0.10 )
+							speedY -= 0.001;
+						break;
+					}
+					case 82:
+					{
+						// R
+						speedX = 0;
+						speedY = 0;
+						break;
+					}
+					default:
+						console.log(event.keyCode);
+						break;
+				}
+			});
+
+		</script>
+	</body>
+<html>
